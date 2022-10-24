@@ -196,7 +196,7 @@ struct cmd*
 execcmd(void)
 {
   struct execcmd *cmd;
-
+  // 注意这里malloc，会调用sbrk()
   cmd = malloc(sizeof(*cmd));
   memset(cmd, 0, sizeof(*cmd));
   cmd->type = EXEC;

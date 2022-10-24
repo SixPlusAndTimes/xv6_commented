@@ -13,7 +13,7 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
-
+int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 void
 tvinit(void)
 {
@@ -91,6 +91,26 @@ trap(struct trapframe *tf)
       panic("trap");
     }
     // In user space, assume process misbehaved.
+    // 处理pagefault
+    if (tf->trapno == T_PGFLT) {
+      struct proc *curproc = myproc();
+      uint addr = PGROUNDDOWN(rcr2());
+      // uint sz = curproc->sz;
+      char* mem = kalloc(); // 分配物理页面
+      if(mem == 0){
+        cprintf("allocuvm out of memory\n");
+        kfree(mem);
+        myproc()->killed = 1;
+      } else {
+        memset(mem, 0, PGSIZE);
+        if(mappages(curproc->pgdir, (char*)addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+          cprintf("allocuvm out of memory (2)\n");
+          kfree(mem);
+          myproc()->killed = 1;
+        }
+        return; // 从异常返回时再执行一遍引起异常的指令
+      }
+    }
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
             myproc()->pid, myproc()->name, tf->trapno,
