@@ -55,7 +55,7 @@ ideinit(void)
   initlock(&idelock, "ide");
   ioapicenable(IRQ_IDE, ncpu - 1);
   idewait(0);
-
+  // 默认0号磁盘是存在的
   // Check if disk 1 is present
   outb(0x1f6, 0xe0 | (1<<4));
   for(i=0; i<1000; i++){
@@ -106,6 +106,7 @@ ideintr(void)
   struct buf *b;
 
   // First queued buffer is the active request.
+  // 处理队列中的第一个buf请求
   acquire(&idelock);
 
   if((b = idequeue) == 0){
@@ -134,6 +135,7 @@ ideintr(void)
 // Sync buf with disk.
 // If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
 // Else if B_VALID is not set, read buf from disk, set B_VALID.
+// iderw 不是用轮询、等待的方法，而是。。。见手册P48
 void
 iderw(struct buf *b)
 {
@@ -148,7 +150,7 @@ iderw(struct buf *b)
 
   acquire(&idelock);  //DOC:acquire-lock
 
-  // Append b to idequeue.
+  // Append b to idequeue. 将buf添加dao队列中
   b->qnext = 0;
   for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
     ;

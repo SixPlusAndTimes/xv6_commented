@@ -4,7 +4,7 @@
 #include "stat.h"
 #include "user.h"
 #include "fcntl.h"
-
+// 这是 initcode.S 中使用exec调用的程序
 char *argv[] = { "sh", 0 };
 
 int
@@ -27,10 +27,12 @@ main(void)
       exit();
     }
     if(pid == 0){
+      // 子进程执行exec运行shell程序
       exec("sh", argv);
       printf(1, "init: exec sh failed\n");
       exit();
     }
+    // 父进程，也就是执行本文件的进程等待 shell进程退出
     while((wpid=wait()) >= 0 && wpid != pid)
       printf(1, "zombie!\n");
   }

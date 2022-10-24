@@ -6,8 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-
-int
+// 这个文件的各个函数由syscall.c的syscall()调用
 sys_fork(void)
 {
   return fork();
@@ -88,4 +87,14 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int 
+sys_date(void)
+{
+  struct rtcdate *r;
+	if(argptr(0, (void*)&r, sizeof(*r)) < 0)
+    	return -1;
+  cmostime(r);
+	return 0;
 }

@@ -14,11 +14,12 @@
 // to a saved program counter, and then the first argument.
 
 // Fetch the int at addr from the current process.
+// 会检测参数是否合法。 argint 和 argstr都用这个来检测
 int
 fetchint(uint addr, int *ip)
 {
   struct proc *curproc = myproc();
-
+  // 体统的addr不能超过本进程的空间
   if(addr >= curproc->sz || addr+4 > curproc->sz)
     return -1;
   *ip = *(int*)(addr);
@@ -32,6 +33,7 @@ int
 fetchstr(uint addr, char **pp)
 {
   char *s, *ep;
+  // myproc 定义在 proc.c中
   struct proc *curproc = myproc();
 
   if(addr >= curproc->sz)
@@ -42,6 +44,7 @@ fetchstr(uint addr, char **pp)
     if(*s == 0)
       return s - *pp;
   }
+  // 如果string 不以 /0 结尾，返回0
   return -1;
 }
 
@@ -49,6 +52,7 @@ fetchstr(uint addr, char **pp)
 int
 argint(int n, int *ip)
 {
+  // tf->esp + 4，跳过返回地址
   return fetchint((myproc()->tf->esp) + 4 + 4*n, ip);
 }
 
@@ -103,6 +107,7 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_date(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -126,17 +131,45 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_date]    sys_date,
 };
-
+// static char* syscall_names[] = {
+//     [SYS_fork]    "fork",
+//     [SYS_exit]    "exit",
+//     [SYS_wait]    "wait",
+//     [SYS_pipe]    "pipe",
+//     [SYS_read]    "read",
+//     [SYS_kill]    "kill",
+//     [SYS_exec]    "exec",
+//     [SYS_fstat]   "fstat",
+//     [SYS_chdir]   "chdir",
+//     [SYS_dup]     "dup",
+//     [SYS_getpid]  "getpid",
+//     [SYS_sbrk]    "sbrk",
+//     [SYS_sleep]   "sleep",
+//     [SYS_uptime]  "uptime",
+//     [SYS_open]    "open",
+//     [SYS_write]   "write",
+//     [SYS_mknod]   "mknod",
+//     [SYS_unlink]  "unlink",
+//     [SYS_link]    "link",
+//     [SYS_mkdir]   "mkdir",
+//     [SYS_close]   "close",
+//     [SYS_date]    "date",
+// };
 void
 syscall(void)
 {
+  // 本函数由 trap.c : trap() 调用
   int num;
+  // 这里涉及到多核CPU的系统调用
   struct proc *curproc = myproc();
 
-  num = curproc->tf->eax;
+  num = curproc->tf->eax; // 系统调用号；process的trapframe已经再trap.c的trap()中设置好了
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    curproc->tf->eax = syscalls[num]();
+        	// cprintf("%s -> %d\n",
+          // syscall_names[num], curproc->tf->eax = syscalls[num]());
+    curproc->tf->eax = syscalls[num](); // 这里执行系统调用
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);

@@ -16,7 +16,7 @@ alltraps:
   movw %ax, %es
 
   # Call trap(tf), where tf=%esp
-  pushl %esp
+  pushl %esp // woc! 这就是 传给trap()的参数！ 第一次看到这种用法！
   call trap
   addl $4, %esp
 
@@ -28,5 +28,5 @@ trapret:
   popl %fs
   popl %es
   popl %ds
-  addl $0x8, %esp  # trapno and errcode
-  iret
+  addl $0x8, %esp  # 跳过 trapno 和 errcode
+  iret # 返回用户空间

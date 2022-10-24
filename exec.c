@@ -26,6 +26,7 @@ exec(char *path, char **argv)
     cprintf("exec: fail\n");
     return -1;
   }
+  // 操作时或得inode的锁
   ilock(ip);
   pgdir = 0;
 
@@ -35,6 +36,7 @@ exec(char *path, char **argv)
   if(elf.magic != ELF_MAGIC)
     goto bad;
 
+  // 创建一个pagedir，设置其对应的内核部分
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
@@ -47,7 +49,7 @@ exec(char *path, char **argv)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
+    if(ph.vaddr + ph.memsz < ph.vaddr) // 防止用户构造了一个指向内核的addr 
       goto bad;
     if((sz = allocuvm(pgdir, sz, ph.vaddr + ph.memsz)) == 0)
       goto bad;
@@ -62,16 +64,18 @@ exec(char *path, char **argv)
 
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible.  Use the second as the user stack.
+  // 分配两个页，高内存的页用作用户栈栈，低内存的页防止栈溢出
   sz = PGROUNDUP(sz);
   if((sz = allocuvm(pgdir, sz, sz + 2*PGSIZE)) == 0)
     goto bad;
-  clearpteu(pgdir, (char*)(sz - 2*PGSIZE));
-  sp = sz;
+  clearpteu(pgdir, (char*)(sz - 2*PGSIZE)); // 清除PTE_U标志，使得低地址的那一页不可被用户获取
+  sp = sz;// sp 现在指向栈顶
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
+      // strlen 不会把 \0 计入总数 
     sp = (sp - (strlen(argv[argc]) + 1)) & ~3;
     if(copyout(pgdir, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
       goto bad;
@@ -98,8 +102,8 @@ exec(char *path, char **argv)
   curproc->pgdir = pgdir;
   curproc->sz = sz;
   curproc->tf->eip = elf.entry;  // main
-  curproc->tf->esp = sp;
-  switchuvm(curproc);
+  curproc->tf->esp = sp; // 用户栈栈顶
+  switchuvm(curproc); 
   freevm(oldpgdir);
   return 0;
 

@@ -21,7 +21,7 @@ tvinit(void)
 
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
-  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
+  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);// 只有系统调用的DPL被设置成为 DPL_USER
 
   initlock(&tickslock, "time");
 }
@@ -36,22 +36,26 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  //检测traono看看，程序为什么会trap
+
+  // 程序因系统调用而trap
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
-    myproc()->tf = tf;
+    myproc()->tf = tf; // 设置trapframe
     syscall();
     if(myproc()->killed)
-      exit();
+      exit();// 不会return
     return;
   }
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
+  // 时钟中断处理程序
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
-      wakeup(&ticks);
+      wakeup(&ticks); // 这可能导致中断返回至另一个进程
       release(&tickslock);
     }
     lapiceoi();

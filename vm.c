@@ -115,6 +115,7 @@ static struct kmap {
 };
 
 // Set up kernel part of a page table.
+// 会配一个物理页存作为页目录表，设置好这个页目录的内核部分后，返回这个页目录表页的地址
 pde_t*
 setupkvm(void)
 {
@@ -163,7 +164,7 @@ switchuvm(struct proc *p)
   if(p->pgdir == 0)
     panic("switchuvm: no pgdir");
 
-  pushcli();
+  pushcli(); // 关中断
   mycpu()->gdt[SEG_TSS] = SEG16(STS_T32A, &mycpu()->ts,
                                 sizeof(mycpu()->ts)-1, 0);
   mycpu()->gdt[SEG_TSS].s = 0;
@@ -194,6 +195,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
 
 // Load a program segment into pgdir.  addr must be page-aligned
 // and the pages from addr to addr+sz must already be mapped.
+// 将程序内容读到对应pte所指向的物理内存中，这个函数不会再创建新的pagetable。如果出了错，那应该是allocuvm这一步错了。
 int
 loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 {
@@ -203,6 +205,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   if((uint) addr % PGSIZE != 0)
     panic("loaduvm: addr must be page aligned");
   for(i = 0; i < sz; i += PGSIZE){
+    // 注意下面wailpgdir的alloc为0，表示不会创建pagetable
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
     pa = PTE_ADDR(*pte);
@@ -218,6 +221,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
+// 创建必要的page table，以及分配物理页
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
