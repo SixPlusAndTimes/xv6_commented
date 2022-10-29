@@ -23,7 +23,10 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+// hw syscall
 int date(struct rtcdate*);
+// hw cpu alarm
+int alarm(int ticks, void (*handler)());
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

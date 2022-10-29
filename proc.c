@@ -88,6 +88,10 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  // hw cpu alarm
+  p->alarmticks = -1;
+  p->alarmticksLeft = -1;
+  p->alarmhandler = (void*)0;
 
   release(&ptable.lock);
 

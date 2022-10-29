@@ -20,8 +20,8 @@ tvinit(void)
   int i;
 
   for(i = 0; i < 256; i++)
-    SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
-  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);// 只有系统调用的DPL被设置成为 DPL_USER
+    SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0); // 为什么 istrap是0？
+  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);// 只有系统调用的DPL被设置成为 DPL_USER；
 
   initlock(&tickslock, "time");
 }
@@ -57,6 +57,23 @@ trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks); // 这可能导致中断返回至另一个进程
       release(&tickslock);
+    }
+    //hw cpu alarm 
+    if(myproc() != 0 && (tf->cs & 3) == 3 && (myproc()->alarmticks != -1)) {
+        myproc()->alarmticksLeft--;
+      // cprintf("ticks interrupt alarmticksLeft--, = %d\n", myproc()->alarmticksLeft);
+
+        if (myproc()->alarmticksLeft == 0) {
+          
+          // cprintf("myproc()->alarmticksLeft == 0\n");
+          // 下面修改trapframe，中断返回时能够返回到 alarmhandler中；alarmhandler执行完后又返回原用户程序继续执行
+          // myproc()->tf->esp -= 4; // 错误 proc中没有保存此次的trapframe，但是JOS在trap()中有这样的操作
+          // 伪造用户程序call hander的假象
+          tf->esp -= 4; // 压栈
+          *(uint*)(tf->esp) = tf->eip; // handler()的返回地址是原用户程序的返回地址
+          tf->eip = (uint)(myproc()->alarmhandler); // 中断程序的返回地址修改为，hanler()的入口
+          myproc()->alarmticksLeft = myproc()->alarmticks; // 重置ticks
+        }
     }
     lapiceoi();
     break;
