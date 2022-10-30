@@ -9,6 +9,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "sleeplock.h"
+// 由于睡眠锁不会关中断，因此不能用在中断处理程序中！
 
 void
 initsleeplock(struct sleeplock *lk, char *name)

@@ -24,8 +24,9 @@ initlock(struct spinlock *lk, char *name)
 void
 acquire(struct spinlock *lk)
 {
-  pushcli(); // disable interrupts to avoid deadlock.
-  if(holding(lk))
+  pushcli(); // disable interrupts to avoid deadlock. 这里的死锁并不是加锁顺序造成的，而是同一个CUP上中断服务程序一直在自旋不能获取同一CPU已经被获取的锁，因此中断不能返回，用户程序也不能执行，一直僵持在那里
+  // 如果在本CPU关了中断，其他CPU依然可以响应中断搁那自旋。但是本CPU的用户程序不被打断一直执行，因此不会发生死锁的情况。                                                                                                                           
+  if(holding(lk)) // 检查本cpu是否已经获取了这个锁
     panic("acquire");
 
   // The xchg is atomic.
@@ -35,7 +36,7 @@ acquire(struct spinlock *lk)
   // Tell the C compiler and the processor to not move loads or stores
   // past this point, to ensure that the critical section's memory
   // references happen after the lock is acquired.
-  __sync_synchronize();
+  __sync_synchronize(); //不允许将这条语句之前的内存读写指令放在这条之后，也不允许将这条语句之后的内存读写指令放在这条指令之前
 
   // Record info about lock acquisition for debugging.
   lk->cpu = mycpu();
