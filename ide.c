@@ -119,7 +119,6 @@ ideintr(void)
   if(!(b->flags & B_DIRTY) && idewait(1) >= 0)
     insl(0x1f0, b->data, BSIZE/4);
 
-  // Wake process waiting for this buf.
   b->flags |= B_VALID; // 刚从磁盘同步，因此valid为1，dirty 为0
   b->flags &= ~B_DIRTY;
   wakeup(b); // 唤醒等待的进程

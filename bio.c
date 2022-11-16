@@ -67,7 +67,7 @@ bget(uint dev, uint blockno)
 
   // Is the block already cached?
   for(b = bcache.head.next; b != &bcache.head; b = b->next){
-    if(b->dev == dev && b->blockno == blockno){
+    if(b->dev == dev && b->blockno == blockno){ // 从前往后扫描
       b->refcnt++;
       release(&bcache.lock);
       acquiresleep(&b->lock);
@@ -78,7 +78,7 @@ bget(uint dev, uint blockno)
   // Not cached; recycle an unused buffer. 没有缓存，回收一个不用的缓存
   // Even if refcnt==0, B_DIRTY indicates a buffer is in use
   // because log.c has modified it but not yet committed it.
-  for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+  for(b = bcache.head.prev; b != &bcache.head; b = b->prev){ // 从后往前扫描
     if(b->refcnt == 0 && (b->flags & B_DIRTY) == 0) {
       b->dev = dev;
       b->blockno = blockno;
@@ -136,7 +136,7 @@ brelse(struct buf *b)
     // lru思想，提升bget中两个循环的效率
     b->next->prev = b->prev;
     b->prev->next = b->next;
-    b->next = bcache.head.next;
+    b->next = bcache.head.next; // 移动到空闲链表的头部
     b->prev = &bcache.head;
     bcache.head.next->prev = b;
     bcache.head.next = b;
