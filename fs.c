@@ -60,6 +60,7 @@ balloc(uint dev)
   struct buf *bp;
 
   bp = 0;
+  // loops over the inode structure on disk, looking for one that marked free
   for(b = 0; b < sb.size; b += BPB){
     bp = bread(dev, BBLOCK(b, sb));
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
@@ -332,10 +333,12 @@ void
 iput(struct inode *ip)
 {
   acquiresleep(&ip->lock);
+  // 如果这个inode不在任何目录中
   if(ip->valid && ip->nlink == 0){
     acquire(&icache.lock);
     int r = ip->ref;
     release(&icache.lock);
+    // 且没有 C指针指向这个inode，那么就trunc（删除数据）它并更新磁盘数据
     if(r == 1){
       // inode has no links and no other references: truncate and free.
       itrunc(ip);

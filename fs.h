@@ -25,12 +25,13 @@ struct superblock {
 #define NINDIRECT (BSIZE / sizeof(uint))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
-// On-disk inode structure
+// On-disk inode structure,磁盘上的inode结构
 struct dinode {
-  short type;           // File type
+  short type;           // File type，files directories or devices。 如果是0则表示，这个inode是free的
   short major;          // Major device number (T_DEV only)
   short minor;          // Minor device number (T_DEV only)
-  short nlink;          // Number of links to inode in file system
+  short nlink;          // Number of links to inode in file system。counts the number of directory entries that refer to this inode
+                            //indicate when the on-disk inode and its data blocks should be freed
   uint size;            // Size of file (bytes)
   uint addrs[NDIRECT+1];   // Data block addresses
 };

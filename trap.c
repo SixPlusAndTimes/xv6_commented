@@ -20,8 +20,9 @@ tvinit(void)
   int i;
 
   for(i = 0; i < 256; i++)
-    SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0); // 为什么 istrap是0？
-  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);// 只有系统调用的DPL被设置成为 DPL_USER；
+    SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0); // 设置为中断门，在进入内核时关中断。
+  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);// 只有系统调用的DPL被设置成为 DPL_USER； 
+  //通过陷进门实现系统调用，进入内核时不关闭中断，这直接导致了与JOS的一个重要不同 ： xv6在执行进程切换时，同时切换内核栈；但是JOS不需要，因为JOS保证一个进程处于内核态时它的IF标志为0，不能被打断
 
   initlock(&tickslock, "time");
 }

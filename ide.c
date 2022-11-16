@@ -53,7 +53,7 @@ ideinit(void)
   int i;
 
   initlock(&idelock, "ide");
-  ioapicenable(IRQ_IDE, ncpu - 1);
+  ioapicenable(IRQ_IDE, ncpu - 1); // 指定最后一个CPU处理硬盘中断
   idewait(0);
   // 默认0号磁盘是存在的
   // Check if disk 1 is present
@@ -64,7 +64,6 @@ ideinit(void)
       break;
     }
   }
-
   // Switch back to disk 0.
   outb(0x1f6, 0xe0 | (0<<4));
 }
@@ -79,13 +78,13 @@ idestart(struct buf *b)
     panic("incorrect blockno");
   int sector_per_block =  BSIZE/SECTOR_SIZE;
   int sector = b->blockno * sector_per_block;
-  int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL;
-  int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
+  int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL; //一个块包含多个扇区的话就用读多个块的命令
+  int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;//一个块包含多个扇区的话就用写多个块的命令
 
   if (sector_per_block > 7) panic("idestart");
 
   idewait(0);
-  outb(0x3f6, 0);  // generate interrupt
+  outb(0x3f6, 0);  // generate interrupt，告知磁盘每次命令完成之后要产生中断。
   outb(0x1f2, sector_per_block);  // number of sectors
   outb(0x1f3, sector & 0xff);
   outb(0x1f4, (sector >> 8) & 0xff);
@@ -95,7 +94,8 @@ idestart(struct buf *b)
     outb(0x1f7, write_cmd);
     outsl(0x1f0, b->data, BSIZE/4);
   } else {
-    outb(0x1f7, read_cmd);
+    outb(0x1f7, read_cmd);// 需要让磁盘把所需数据准备到它自己的缓冲区中
+    // 真正的读操作在ideintr这个中断处理函数中，它从磁盘的缓冲区读到内存中
   }
 }
 
@@ -120,9 +120,9 @@ ideintr(void)
     insl(0x1f0, b->data, BSIZE/4);
 
   // Wake process waiting for this buf.
-  b->flags |= B_VALID;
+  b->flags |= B_VALID; // 刚从磁盘同步，因此valid为1，dirty 为0
   b->flags &= ~B_DIRTY;
-  wakeup(b);
+  wakeup(b); // 唤醒等待的进程
 
   // Start disk on next buf in queue.
   if(idequeue != 0)
@@ -135,7 +135,6 @@ ideintr(void)
 // Sync buf with disk.
 // If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
 // Else if B_VALID is not set, read buf from disk, set B_VALID.
-// iderw 不是用轮询、等待的方法，而是。。。见手册P48
 void
 iderw(struct buf *b)
 {
@@ -150,21 +149,19 @@ iderw(struct buf *b)
 
   acquire(&idelock);  //DOC:acquire-lock
 
-  // Append b to idequeue. 将buf添加dao队列中
+  // Append b to idequeue. 将buf添加到等待队列的末尾
   b->qnext = 0;
   for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
     ;
   *pp = b;
 
   // Start disk if necessary.
+  // 如果等待队列中只有b，那么现在就开始执行
   if(idequeue == b)
     idestart(b);
-
-  // Wait for request to finish.
+  // 本进程阻塞并等待硬盘操作完成
   while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
     sleep(b, &idelock);
   }
-
-
   release(&idelock);
 }

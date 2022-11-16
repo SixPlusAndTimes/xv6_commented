@@ -194,7 +194,7 @@ commit()
 {
   if (log.lh.n > 0) {
     write_log();     // Write modified blocks from cache to log
-    write_head();    // Write header to disk -- the real commit
+    write_head();    // Write header to disk -- the real commit, 真正的commit 
     install_trans(); // Now install writes to home locations
     log.lh.n = 0;
     write_head();    // Erase the transaction from the log
@@ -222,6 +222,7 @@ log_write(struct buf *b)
 
   acquire(&log.lock);
   for (i = 0; i < log.lh.n; i++) {
+    //a block is written multiple times in a single transaction
     if (log.lh.block[i] == b->blockno)   // log absorbtion
       break;
   }
