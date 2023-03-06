@@ -95,7 +95,7 @@ found:
 
   release(&ptable.lock);
 
-  // Allocate kernel stack.
+  // Allocate kernel stack. 分配内核栈
   if((p->kstack = kalloc()) == 0){
     p->state = UNUSED;
     return 0;
@@ -109,12 +109,12 @@ found:
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
-  *(uint*)sp = (uint)trapret;
+  *(uint*)sp = (uint)trapret; // 伪造假的内核返回地址，当从switch中返回时，直接返回trapret执行中断返回
 
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
-  p->context->eip = (uint)forkret;
+  p->context->eip = (uint)forkret; // 伪造假的中断返回值，中断返回值forkret执行
 
   return p;
 }
@@ -186,15 +186,15 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-  struct proc *curproc = myproc();
+  struct proc *curproc = myproc(); 
 
   // Allocate process.
-  if((np = allocproc()) == 0){
+  if((np = allocproc()) == 0){// 在proc链表中选一个空闲的位置，并且设置内核栈
     return -1;
   }
 
   // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){ // 拷贝父进程的pgdir
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -209,8 +209,8 @@ fork(void)
 
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
-      np->ofile[i] = filedup(curproc->ofile[i]);
-  np->cwd = idup(curproc->cwd);
+      np->ofile[i] = filedup(curproc->ofile[i]); // 拷贝所有打开的文件
+  np->cwd = idup(curproc->cwd); // 拷贝当前路径
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 

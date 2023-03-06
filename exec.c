@@ -40,7 +40,7 @@ exec(char *path, char **argv)
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
-  // Load program into memory.
+  // Load program into memory. 将用户程序加在到虚拟地址空间，并在pgdir中创建相关连接
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
@@ -51,11 +51,11 @@ exec(char *path, char **argv)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr) // 防止用户构造了一个指向内核的addr 
       goto bad;
-    if((sz = allocuvm(pgdir, sz, ph.vaddr + ph.memsz)) == 0)
+    if((sz = allocuvm(pgdir, sz, ph.vaddr + ph.memsz)) == 0) // 仅仅是分配了页表以及填写了对应的pte
       goto bad;
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
+    if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0) // 这里才是分配物理页将elf文件的内容拷贝到物理内存中
       goto bad;
   }
   iunlockput(ip);
@@ -101,10 +101,10 @@ exec(char *path, char **argv)
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;
   curproc->sz = sz;
-  curproc->tf->eip = elf.entry;  // main
+  curproc->tf->eip = elf.entry;  // 用户程序入口，不是main，而是_start函数，在entry.S文件中
   curproc->tf->esp = sp; // 用户栈栈顶
-  switchuvm(curproc); 
-  freevm(oldpgdir);
+  switchuvm(curproc);    // 进程切换
+  freevm(oldpgdir); // 真的释放掉了，因为fork调用复制了完整的pgdir，不会出现多个进程共享一个pddir的情况，换句话说，xv6没有线程的实现。
   return 0;
 
  bad:

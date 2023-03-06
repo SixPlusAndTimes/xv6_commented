@@ -78,7 +78,8 @@ runcmd(struct cmd *cmd)
     exec(ecmd->argv[0], ecmd->argv);
     printf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
-
+  // 重定向:在执行exec之前先把进程的标准输入或输出文件close了,再open重定向的目标文件覆盖这个fd
+  //        最后再递归地runcmd执行exec系统调用。
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);

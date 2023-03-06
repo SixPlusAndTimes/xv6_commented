@@ -93,6 +93,9 @@ filestat(struct file *f, struct stat *st)
 }
 
 // Read from file f.
+// struct file *f 要读的文件结构
+// char* addr 要读到哪里，通常是个用户态地址
+// int n : 要读多少个字节数
 int
 fileread(struct file *f, char *addr, int n)
 {
@@ -100,9 +103,10 @@ fileread(struct file *f, char *addr, int n)
 
   if(f->readable == 0)
     return -1;
-  if(f->type == FD_PIPE)
+  // 判断file结构的type
+  if(f->type == FD_PIPE)// 如果是管道，则调用管道的读操作
     return piperead(f->pipe, addr, n);
-  if(f->type == FD_INODE){
+  if(f->type == FD_INODE){// 如果是inode，则调用inode读操作
     ilock(f->ip);
     if((r = readi(f->ip, addr, f->off, n)) > 0)
       f->off += r;

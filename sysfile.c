@@ -348,6 +348,7 @@ sys_mkdir(void)
   return 0;
 }
 
+// 创建控制台文件，inode的type设置为T_DEV
 int
 sys_mknod(void)
 {
