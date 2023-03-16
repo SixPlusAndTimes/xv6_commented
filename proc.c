@@ -323,6 +323,7 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+// 每个CPU都调用scheduler，循环执行ptable中的进程
 void
 scheduler(void)
 {
@@ -346,7 +347,7 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
+      
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
@@ -435,20 +436,21 @@ sleep(void *chan, struct spinlock *lk)
   // guaranteed that we won't miss any wakeup
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
-  if(lk != &ptable.lock){  //DOC: sleeplock0
-    acquire(&ptable.lock);  //DOC: sleeplock1
-    release(lk);
+  // 如果进程要等待的不是patablelock本身，则首先要获取patblelock
+  if(lk != &ptable.lock){  
+    acquire(&ptable.lock);  
+    release(lk); // 释放自旋锁
   }
-  // Go to sleep.
-  p->chan = chan;
-  p->state = SLEEPING;
+  // 将本进程投入睡眠
+  p->chan = chan; // 在proc结构体中记录，本进程在那个“频道”上等待
+  p->state = SLEEPING; // 将进程状态改为Sleeping，表示本进程正在等待某种资源
 
-  sched();
+  sched(); // 调用sched将本进程调度走
 
-  // Tidy up.
+  // 到这一步，表示本进程已经被其他进程唤醒，进程状态为Running
   p->chan = 0;
 
-  // Reacquire original lock.
+  // 重新获取自旋锁
   if(lk != &ptable.lock){  //DOC: sleeplock2
     release(&ptable.lock);
     acquire(lk);

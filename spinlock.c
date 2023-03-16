@@ -24,7 +24,9 @@ initlock(struct spinlock *lk, char *name)
 void
 acquire(struct spinlock *lk)
 {
-  pushcli(); // disable interrupts to avoid deadlock. 这里的死锁并不是加锁顺序造成的，而是同一个CUP上中断服务程序一直在自旋不能获取同一CPU已经被获取的锁，因此中断不能返回，用户程序也不能执行，一直僵持在那里造成的死锁
+  pushcli(); // 关中断防止死锁. 
+  // 如果不管中断，造成的死锁并不是加锁顺序造成的
+  //     而是同一个CUP上中断服务程序一直在自旋不能获取同一CPU已经获取的锁，因此中断不能返回，用户程序也不能执行，一直僵持在那里造成死锁
   // 如果在本CPU关了中断，其他CPU依然可以响应中断搁那自旋。但是本CPU的用户程序不被打断一直执行，因此不会发生死锁的情况。                                                                                                                           
   if(holding(lk)) // 检查本cpu是否已经获取了这个锁
     panic("acquire");
@@ -98,10 +100,10 @@ holding(struct spinlock *lock)
 }
 
 
+// 为什么要设计pushcli popcli这两个函数？ 而不直接使用cli sti？因为内核中的开关中断情况太多，且内核又必须记录中断状态的原始状态，所以很难理清到底在哪里开中断，又在哪里关中断。
 // Pushcli/popcli are like cli/sti except that they are matched:
 // it takes two popcli to undo two pushcli.  Also, if interrupts
 // are off, then pushcli, popcli leaves them off.
-
 void
 pushcli(void)
 {
@@ -111,7 +113,7 @@ pushcli(void)
   cli();
   if(mycpu()->ncli == 0)
     mycpu()->intena = eflags & FL_IF;
-  mycpu()->ncli += 1;
+  mycpu()->ncli += 1; // 记录关中断的次数
 }
 
 void
@@ -121,7 +123,7 @@ popcli(void)
     panic("popcli - interruptible");
   if(--mycpu()->ncli < 0)
     panic("popcli");
-  if(mycpu()->ncli == 0 && mycpu()->intena)
+  if(mycpu()->ncli == 0 && mycpu()->intena) // 当关的中断都要解开时，才开中断
     sti();
 }
 

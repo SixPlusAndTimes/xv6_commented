@@ -8,7 +8,8 @@
 # eip寄存器被隐式保存，又被隐式恢复。 call指令自动在栈中保存eip，ret指令自动从栈中恢复eip
 .globl swtch
 swtch:
-  movl 4(%esp), %eax
+  
+  movl 4(%esp), %eax  
   movl 8(%esp), %edx
 
   # Save old callee-saved registers

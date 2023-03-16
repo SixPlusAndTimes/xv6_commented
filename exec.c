@@ -96,7 +96,7 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(curproc->name, last, sizeof(curproc->name));
-
+  // 注意xv6堆与栈的顺序与linux大不相同！，xv6的堆在上面，而栈在下面
   // Commit to the user image.
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;

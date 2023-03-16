@@ -20,27 +20,29 @@ initsleeplock(struct sleeplock *lk, char *name)
   lk->pid = 0;
 }
 
+// 获取睡眠锁
 void
 acquiresleep(struct sleeplock *lk)
 {
-  acquire(&lk->lk);
-  while (lk->locked) {
-    sleep(lk, &lk->lk);
+  acquire(&lk->lk); // 首先获取睡眠锁中的自旋锁
+  while (lk->locked) { // 此时对locked字段的存取操作就是原子的了
+    sleep(lk, &lk->lk); // 如果已经被其他进程获取，则本线程投入睡眠。 sleep函数，在将进程投入睡眠前，会对自旋锁解锁
   }
-  lk->locked = 1;
-  lk->pid = myproc()->pid;
-  release(&lk->lk);
+  lk->locked = 1;  // 获取睡眠锁
+  lk->pid = myproc()->pid; // 用于debug
+  release(&lk->lk); // 释放自旋锁
 }
 
+// 释放睡眠锁
 void
 releasesleep(struct sleeplock *lk)
 {
-  acquire(&lk->lk);
-  lk->locked = 0;
+  acquire(&lk->lk); // 首先获取睡眠锁中的自旋锁
+  lk->locked = 0;   // 释放睡眠锁
   lk->pid = 0;
-  wakeup(lk);
-  release(&lk->lk);
-}
+  wakeup(lk);       // 唤醒等待lk的进程
+  release(&lk->lk); // 释放自旋锁
+} 
 
 int
 holdingsleep(struct sleeplock *lk)
